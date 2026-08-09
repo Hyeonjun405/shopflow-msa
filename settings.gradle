@@ -1,0 +1,3 @@
+rootProject.name = 'shopflow-msa'
+
+include 'user-service'
