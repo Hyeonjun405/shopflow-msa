@@ -1,0 +1,22 @@
+package com.ecommerce.product.domain.category.dto.command;
+
+
+import com.ecommerce.product.domain.category.dto.reqeust.UpdateCategoryRequest;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@NoArgsConstructor
+@AllArgsConstructor
+public class UpdateCategoryCommand {
+    private String name;
+    private String description;
+
+    public static UpdateCategoryCommand from(UpdateCategoryRequest request) {
+        return new UpdateCategoryCommand(
+                request.getName(),
+                request.getDescription()
+        );
+    }
+}
