@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: gateway
+
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: user-service
+              uri: http://localhost:8081
+              predicates:
+                - Path=/api/users/**
+
+            - id: product-service
+              uri: http://localhost:8082
+              predicates:
+                - Path=/api/products/**, /api/categories/**
+
+            - id: cart-service
+              uri: http://localhost:8083
+              predicates:
+                - Path=/api/cart/**
+
+            - id: order-service
+              uri: http://localhost:8084
+              predicates:
+                - Path=/api/orders/**
+
+            - id: coupon-service
+              uri: http://localhost:8085
+              predicates:
+                - Path=/api/coupons/**
+
+            - id: payment-service
+              uri: http://localhost:8086
+              predicates:
+                - Path=/api/payments/**
+  discovery:
+    enabled: false
+
+server:
+  port: 8080
+
+jwt:
+  secret: shopflow-secret-key-must-be-at-least-256-bits-long
+  expiration: 3600000
