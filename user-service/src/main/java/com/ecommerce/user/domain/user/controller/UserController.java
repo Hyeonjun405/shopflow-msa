@@ -8,13 +8,11 @@ import com.ecommerce.user.domain.user.dto.request.LoginRequest;
 import com.ecommerce.user.domain.user.dto.request.SignUpRequest;
 import com.ecommerce.user.domain.user.dto.request.UpdateUserInfoRequest;
 import com.ecommerce.user.common.dto.response.ApiResponse;
-import com.ecommerce.user.global.jwt.UserPrincipal;
 import com.ecommerce.user.domain.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 // UserController (일반 유저용)
@@ -38,15 +36,17 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> updateUserInfo(@AuthenticationPrincipal UserPrincipal principal,
-                                                            @RequestBody @Valid UpdateUserInfoRequest request) {
-        userService.updateUserInfo(principal.getId(), UpdateUserInfoCommand.from(request));
+    public ResponseEntity<ApiResponse<Void>> updateUserInfo(
+            @RequestHeader("X-User-Id") Long userId,
+            @RequestBody @Valid UpdateUserInfoRequest request) {
+        userService.updateUserInfo(userId, UpdateUserInfoCommand.from(request));
         return ApiResponse.success(HttpStatus.OK, null);
     }
 
     @DeleteMapping("/me")
-    public ResponseEntity<ApiResponse<Void>> withdraw(@AuthenticationPrincipal UserPrincipal principal) {
-        userService.withdraw(principal.getId());
+    public ResponseEntity<ApiResponse<Void>> withdraw(
+            @RequestHeader("X-User-Id") Long userId) {
+        userService.withdraw(userId);
         return ApiResponse.success(HttpStatus.OK, null);
     }
 }

@@ -8,12 +8,13 @@ import com.ecommerce.user.domain.user.entity.User;
 import com.ecommerce.user.common.enums.UserStatus;
 import com.ecommerce.user.global.exception.DomainException;
 import com.ecommerce.user.global.exception.DomainExceptionCode;
-import com.ecommerce.user.global.jwt.JwtProvider;
 import com.ecommerce.user.domain.user.repository.UserRepository;
+import com.ecommerce.user.global.jwt.JwtProvider;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 @Service
 @RequiredArgsConstructor
@@ -22,7 +23,6 @@ public class UserService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtProvider jwtProvider;
-
 
     @Transactional(readOnly = true)
     public UserInfo getUser(Long userId) {
