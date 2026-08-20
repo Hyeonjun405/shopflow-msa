@@ -11,6 +11,116 @@ services:
     volumes:
       - shopflow-msa-mysql-data:/var/lib/mysql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  gateway:
+    build:
+      context: ./gateway-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - user
+      - product
+      - cart
+      - order
+      - coupon
+      - payment
+
+  user:
+    build:
+      context: ./user-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-user
+    ports:
+      - "8081:8081"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_user?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  product:
+    build:
+      context: ./product-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-product
+    ports:
+      - "8082:8082"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_product?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  cart:
+    build:
+      context: ./cart-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-cart
+    ports:
+      - "8083:8083"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_cart?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  order:
+    build:
+      context: ./order-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-order
+    ports:
+      - "8084:8084"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_order?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  coupon:
+    build:
+      context: ./coupon-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-coupon
+    ports:
+      - "8085:8085"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_coupon?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
+
+  payment:
+    build:
+      context: ./payment-service
+      dockerfile: docker/Dockerfile
+    container_name: shopflow-payment
+    ports:
+      - "8086:8086"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/shopflow_payment?serverTimezone=Asia/Seoul&characterEncoding=UTF-8
+      SPRING_DATASOURCE_USERNAME: root
+      SPRING_DATASOURCE_PASSWORD: root
 
 volumes:
   shopflow-msa-mysql-data:
