@@ -1,6 +1,7 @@
 package com.ecommerce.product.kafka.consumer;
 
 import com.ecommerce.product.domain.product.service.ProductService;
+import com.ecommerce.product.kafka.event.OrderCancelledEvent;
 import com.ecommerce.product.kafka.event.OrderCreatedEvent;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,22 @@ public class OrderEventConsumer {
             log.info("재고 차감 완료 - orderId: {}", event.getOrderId());
         } catch (Exception e) {
             log.error("재고 차감 실패 - message: {}", message, e);
+        }
+    }
+
+    @KafkaListener(topics = "order-cancelled", groupId = "product-service")
+    public void handleOrderCancelled(String message) {
+        try {
+            ObjectMapper objectMapper = new ObjectMapper();
+            OrderCancelledEvent event = objectMapper.readValue(message, OrderCancelledEvent.class);
+
+            event.getItems().forEach(item ->
+                    productService.increaseStock(item.getProductId(), item.getQuantity())
+            );
+
+            log.info("재고 복구 완료 - orderId: {}", event.getOrderId());
+        } catch (Exception e) {
+            log.error("재고 복구 실패 - message: {}", message, e);
         }
     }
 }
