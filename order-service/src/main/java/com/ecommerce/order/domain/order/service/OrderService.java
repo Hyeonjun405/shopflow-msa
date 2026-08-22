@@ -11,6 +11,9 @@ import com.ecommerce.order.domain.order.repository.OrderItemRepository;
 import com.ecommerce.order.domain.order.repository.OrderRepository;
 import com.ecommerce.order.global.exception.DomainException;
 import com.ecommerce.order.global.exception.DomainExceptionCode;
+import com.ecommerce.order.kafka.event.OrderCreatedEvent;
+import com.ecommerce.order.kafka.event.OrderItemEvent;
+import com.ecommerce.order.kafka.producer.OrderEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,61 +25,69 @@ import java.util.List;
 @RequiredArgsConstructor
 public class OrderService {
 
-        private final OrderRepository orderRepository;
-        private final OrderItemRepository orderItemRepository;
+    private final OrderRepository orderRepository;
+    private final OrderItemRepository orderItemRepository;
+    private final OrderEventProducer orderEventProducer;
 
-        @Transactional
-        public void updateOrderStatus(Long orderId, UpdateOrderStatusCommand command) {
-            Order order = findOrderById(orderId);
-            order.updateStatus(command.getStatus());
+    @Transactional
+    public void updateOrderStatus(Long orderId, UpdateOrderStatusCommand command) {
+        Order order = findOrderById(orderId);
+        order.updateStatus(command.getStatus());
+    }
+
+    @Transactional
+    public void createOrder(Long userId, CreateOrderCommand command) {
+        Order savedOrder = orderRepository.save(Order.create(userId, 0));
+
+        int totalPrice = 0;
+        List<OrderItem> orderItems = new ArrayList<>();
+
+        for (CreateOrderItemCommand itemCommand : command.getItems()) {
+            OrderItem orderItem = OrderItem.create(savedOrder, itemCommand.getProductId(), itemCommand.getQuantity(), itemCommand.getPrice());
+            orderItems.add(orderItem);
+            totalPrice += orderItem.getPrice();
         }
 
-        @Transactional
-        public void createOrder(Long userId, CreateOrderCommand command) {
-            Order savedOrder = orderRepository.save(Order.create(userId, 0));
+        orderItemRepository.saveAll(orderItems);
+        savedOrder.updateTotalPrice(totalPrice);
 
-            int totalPrice = 0;
-            List<OrderItem> orderItems = new ArrayList<>();
+        // 이벤트 발행
+        List<OrderItemEvent> itemEvents = orderItems.stream()
+                .map(item -> new OrderItemEvent(item.getProductId(), item.getQuantity()))
+                .toList();
+        orderEventProducer.sendOrderCreated(new OrderCreatedEvent(savedOrder.getId(), itemEvents));
+    }
 
-            for (CreateOrderItemCommand itemCommand : command.getItems()) {
-                OrderItem orderItem = OrderItem.create(savedOrder, itemCommand.getProductId(), itemCommand.getQuantity(), itemCommand.getPrice());
-                orderItems.add(orderItem);
-                totalPrice += orderItem.getPrice();
-            }
+    @Transactional
+    public void cancelOrder(Long userId, Long orderId) {
+        Order order = findOrderById(orderId);
+        validateOrderOwner(order, userId);
+        order.cancel();
+    }
 
-            orderItemRepository.saveAll(orderItems);
-            savedOrder.updateTotalPrice(totalPrice);
+    @Transactional(readOnly = true)
+    public List<OrderInfo> getOrders(Long userId) {
+        return orderRepository.findByUserId(userId).stream()
+                .map(OrderInfo::from)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public OrderInfo getOrder(Long userId, Long orderId) {
+        Order order = findOrderById(orderId);
+        validateOrderOwner(order, userId);
+        return OrderInfo.from(order);
+    }
+
+    private Order findOrderById(Long orderId) {
+        return orderRepository.findById(orderId)
+                .orElseThrow(() -> new DomainException(DomainExceptionCode.NOT_FOUND_ORDER));
+    }
+
+    private void validateOrderOwner(Order order, Long userId) {
+        if (!order.getUserId().equals(userId)) {
+            throw new DomainException(DomainExceptionCode.UNAUTHORIZED);
         }
-
-        @Transactional
-        public void cancelOrder(Long userId, Long orderId) {
-            Order order = findOrderById(orderId);
-            validateOrderOwner(order, userId);
-            order.cancel();
-        }
-
-        @Transactional(readOnly = true)
-        public List<OrderInfo> getOrders(Long userId) {
-            return orderRepository.findByUserId(userId).stream()
-                    .map(OrderInfo::from)
-                    .toList();
-        }
-
-        @Transactional(readOnly = true)
-        public OrderInfo getOrder(Long userId, Long orderId) {
-            Order order = findOrderById(orderId);
-            validateOrderOwner(order, userId);
-            return OrderInfo.from(order);
-        }
-
-        private Order findOrderById(Long orderId) {
-            return orderRepository.findById(orderId)
-                    .orElseThrow(() -> new DomainException(DomainExceptionCode.NOT_FOUND_ORDER));
-        }
-
-        private void validateOrderOwner(Order order, Long userId) {
-            if (!order.getUserId().equals(userId)) {
-                throw new DomainException(DomainExceptionCode.UNAUTHORIZED);
-            }
-        }
+    }
 }
+
