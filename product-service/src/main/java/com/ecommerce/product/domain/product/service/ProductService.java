@@ -81,4 +81,10 @@ public class ProductService {
         return productRepository.findById(productId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.NOT_FOUND_PRODUCT));
     }
+
+    @Transactional
+    public void decreaseStock(Long productId, int quantity) {
+        Product product = findProductById(productId);
+        product.decreaseStock(quantity);
+    }
 }
