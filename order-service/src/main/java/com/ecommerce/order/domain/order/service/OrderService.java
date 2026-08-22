@@ -11,6 +11,7 @@ import com.ecommerce.order.domain.order.repository.OrderItemRepository;
 import com.ecommerce.order.domain.order.repository.OrderRepository;
 import com.ecommerce.order.global.exception.DomainException;
 import com.ecommerce.order.global.exception.DomainExceptionCode;
+import com.ecommerce.order.kafka.event.OrderCancelledEvent;
 import com.ecommerce.order.kafka.event.OrderCreatedEvent;
 import com.ecommerce.order.kafka.event.OrderItemEvent;
 import com.ecommerce.order.kafka.producer.OrderEventProducer;
@@ -62,7 +63,14 @@ public class OrderService {
     public void cancelOrder(Long userId, Long orderId) {
         Order order = findOrderById(orderId);
         validateOrderOwner(order, userId);
+
+        List<OrderItemEvent> itemEvents = order.getItems().stream()
+                .map(item -> new OrderItemEvent(item.getProductId(), item.getQuantity()))
+                .toList();
+
         order.cancel();
+
+        orderEventProducer.sendOrderCancelled(new OrderCancelledEvent(order.getId(), itemEvents));
     }
 
     @Transactional(readOnly = true)
