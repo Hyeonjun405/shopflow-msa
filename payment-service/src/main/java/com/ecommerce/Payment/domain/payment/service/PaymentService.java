@@ -11,6 +11,8 @@ import com.ecommerce.Payment.domain.payment.repository.PaymentRepository;
 
 import com.ecommerce.Payment.global.exception.DomainException;
 import com.ecommerce.Payment.global.exception.DomainExceptionCode;
+import com.ecommerce.Payment.kafka.event.PaymentCompletedEvent;
+import com.ecommerce.Payment.kafka.producer.PaymentEventProducer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,27 +25,31 @@ public class PaymentService {
 
     private final PaymentRepository paymentRepository;
     private final PaymentGatewayRouter paymentGatewayRouter;
+    private final PaymentEventProducer paymentEventProducer;
 
     @Transactional
     public void pay(Long userId, PayCommand command) {
-
         validatePayable(command.getOrderId(), userId);
 
         PaymentGateway gateway = paymentGatewayRouter.getGateway(command.getPaymentType());
-
-        //TODO : 최종 결제금액 확인필요
-        int totalPrice = 0;
-        PaymentGatewayResult result = gateway.pay(totalPrice);
+        PaymentGatewayResult result = gateway.pay(command.getAmount());
 
         if (!result.isSuccess()) {
             throw new DomainException(DomainExceptionCode.PAYMENT_FAILED);
         }
 
-        Payment payment = Payment.create(command.getOrderId(), userId, totalPrice, command.getPaymentType(), result.getTransactionId());
+        Payment payment = Payment.create(
+                command.getOrderId(),
+                userId,
+                command.getAmount(),
+                command.getPaymentType(),
+                result.getTransactionId()
+        );
         paymentRepository.save(payment);
 
-        // TODO : 페이먼트 성공해서 return 하면 Order서비스에서 설정
-        //order.updateStatus(OrderStatus.PAID);
+        paymentEventProducer.sendPaymentCompleted(
+                new PaymentCompletedEvent(payment.getId(), command.getOrderId(), userId, command.getUserCouponId())
+        );
     }
 
     @Transactional
@@ -92,16 +98,11 @@ public class PaymentService {
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.NOT_FOUND_PAYMENT));
     }
 
-    //TODO : 검증 작업 필요
     private void validatePayable(Long orderId, Long userId) {
-//        if (!order.getUser().getId().equals(userId)) {
-//            throw new DomainException(DomainExceptionCode.UNAUTHORIZED);
-//        }
-//        if (order.getStatus() != OrderStatus.PENDING) {
-//            throw new DomainException(DomainExceptionCode.CANNOT_PAY_ORDER);
-//        }
         if (paymentRepository.findByOrderId(orderId).isPresent()) {
             throw new DomainException(DomainExceptionCode.ALREADY_PAID);
         }
+
+        //TODO : userID 검증로직
     }
 }

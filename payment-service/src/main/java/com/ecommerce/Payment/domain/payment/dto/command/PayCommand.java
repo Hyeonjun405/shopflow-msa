@@ -12,11 +12,15 @@ import lombok.NoArgsConstructor;
 public class PayCommand {
     private Long orderId;
     private PaymentType paymentType;
+    private int amount;
+    private Long userCouponId;
 
     public static PayCommand from(PayRequest request) {
         return new PayCommand(
                 request.getOrderId(),
-                request.getPaymentType()
+                request.getPaymentType(),
+                request.getAmount(),
+                request.getUserCouponId()
         );
     }
 }
