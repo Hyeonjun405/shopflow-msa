@@ -73,14 +73,16 @@ public class CouponService {
                 .toList();
     }
 
-    public UserCoupon validateAndGetUserCoupon(Long userId, Long userCouponId) {
+    @Transactional
+    public void useCoupon(Long userCouponId, Long userId) {
         UserCoupon userCoupon = userCouponRepository.findById(userCouponId)
                 .orElseThrow(() -> new DomainException(DomainExceptionCode.NOT_FOUND_COUPON));
 
         if (!userCoupon.getUserId().equals(userId)) {
             throw new DomainException(DomainExceptionCode.UNAUTHORIZED);
         }
-        return userCoupon;
+
+        userCoupon.use();
     }
 
     private Coupon findCouponById(Long couponId) {
